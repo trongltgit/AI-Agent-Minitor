@@ -30,6 +30,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      # Bạn sẽ set API_URL thủ công sau khi API có URL
-      # - key: API_URL
-      #   value: https://ai-agent-monitor-api.onrender.com
+      # Sau khi deploy xong, vào Dashboard → Environment thêm:
+      # Key: API_URL
+      # Value: https://ai-agent-monitor-api-xxxx.onrender.com
