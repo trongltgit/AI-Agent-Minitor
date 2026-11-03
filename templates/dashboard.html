@@ -87,8 +87,8 @@
 </div>
 
 <script>
-    const decisionData = {{ stats.by_decision | tojson }};
-    const riskData = {{ stats.by_risk_level | tojson }};
+    const decisionData = {{ stats.by_decision | default({}) | tojson }};
+    const riskData = {{ stats.by_risk_level | default({}) | tojson }};
 
     new Chart(document.getElementById('decisionChart'), {
         type: 'doughnut',
