@@ -1,0 +1,37 @@
+# Render Blueprint - Deploy AI Agent Monitor
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ========== FastAPI Backend ==========
+  - type: web
+    name: ai-agent-monitor-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: LLM_PROVIDER
+        value: mock
+      - key: DATABASE_URL
+        value: sqlite:///./data/agent_monitor.db
+    healthCheckPath: /health
+
+  # ========== Streamlit Dashboard ==========
+  - type: web
+    name: ai-agent-monitor-dashboard
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app/dashboard.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: API_URL
+        fromService:
+          name: ai-agent-monitor-api
+          type: web
+          property: host
