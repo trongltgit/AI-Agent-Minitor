@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - AI Agent Monitor{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <p class="text-gray-500 mt-1">Tổng quan giám sát AI Agent real-time</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+    <div class="card">
+        <p class="text-sm text-gray-500">Tổng Actions</p>
+        <p class="text-3xl font-bold text-gray-900 mt-1">{{ stats.total_actions or 0 }}</p>
+    </div>
+    <div class="card">
+        <p class="text-sm text-gray-500">High Risk</p>
+        <p class="text-3xl font-bold text-red-600 mt-1">{{ stats.high_risk_count or 0 }}</p>
+    </div>
+    <div class="card">
+        <p class="text-sm text-gray-500">BLOCK</p>
+        <p class="text-3xl font-bold text-red-500 mt-1">{{ stats.by_decision.BLOCK or 0 }}</p>
+    </div>
+    <div class="card">
+        <p class="text-sm text-gray-500">REVIEW</p>
+        <p class="text-3xl font-bold text-yellow-500 mt-1">{{ stats.by_decision.REVIEW or 0 }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Decision Chart -->
+    <div class="card">
+        <h3 class="font-semibold text-gray-800 mb-4">Phân bố quyết định</h3>
+        <canvas id="decisionChart" height="220"></canvas>
+    </div>
+    <!-- Risk Chart -->
+    <div class="card">
+        <h3 class="font-semibold text-gray-800 mb-4">Phân bố mức rủi ro</h3>
+        <canvas id="riskChart" height="220"></canvas>
+    </div>
+</div>
+
+<!-- Recent Actions -->
+<div class="card">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="font-semibold text-gray-800">Actions gần đây</h3>
+        <a href="/actions" class="text-sm text-blue-600 hover:underline">Xem tất cả →</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                    <th class="px-4 py-3 text-left">Thời gian</th>
+                    <th class="px-4 py-3 text-left">Agent</th>
+                    <th class="px-4 py-3 text-left">Loại</th>
+                    <th class="px-4 py-3 text-right">Notional</th>
+                    <th class="px-4 py-3 text-center">Score</th>
+                    <th class="px-4 py-3 text-center">Quyết định</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for a in recent %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-500">{{ a.timestamp[:19] if a.timestamp else '-' }}</td>
+                    <td class="px-4 py-3 font-medium">{{ a.agent_id }}</td>
+                    <td class="px-4 py-3">{{ a.action_type }}</td>
+                    <td class="px-4 py-3 text-right">${{ "{:,.0f}".format(a.notional_usd or 0) }}</td>
+                    <td class="px-4 py-3 text-center">{{ "%.3f"|format(a.anomaly_score or 0) }}</td>
+                    <td class="px-4 py-3 text-center">
+                        {% if a.decision == 'ALLOW' %}
+                            <span class="badge-allow">ALLOW</span>
+                        {% elif a.decision == 'REVIEW' %}
+                            <span class="badge-review">REVIEW</span>
+                        {% else %}
+                            <span class="badge-block">BLOCK</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-gray-400">Chưa có dữ liệu</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const decisionData = {{ stats.by_decision | tojson }};
+    const riskData = {{ stats.by_risk_level | tojson }};
+
+    new Chart(document.getElementById('decisionChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(decisionData),
+            datasets: [{
+                data: Object.values(decisionData),
+                backgroundColor: ['#22c55e', '#eab308', '#ef4444']
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+
+    new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(riskData),
+            datasets: [{
+                data: Object.values(riskData),
+                backgroundColor: ['#22c55e', '#eab308', '#ef4444']
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+</script>
+{% endblock %}

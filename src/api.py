@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -19,6 +21,14 @@ app = FastAPI(
 )
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Web UI
+try:
+    from src.web import router as web_router
+    app.include_router(web_router)
+except Exception as e:
+    print(f"Web UI not loaded: {e}")
+
 
 
 class ActionRequest(BaseModel):
@@ -60,12 +70,13 @@ class CustomerProfileCreate(BaseModel):
     aggressiveness_score: float = 0.4
 
 
-@app.get("/")
-def root():
+@app.get("/api")
+def api_info():
     return {
         "service": "AI Agent Monitor v2",
         "features": ["Strict Broker Limits", "Customer Behavior Profiling", "Anti-Bot Velocity", "KYA", "LLM Critic"],
-        "docs": "/docs"
+        "docs": "/docs",
+        "web": "/"
     }
 
 

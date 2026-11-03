@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Agent Registry - AI Agent Monitor{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Agent Registry (KYA)</h1>
+        <p class="text-gray-500 mt-1">Quản lý agent và hạn mức được phép</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Agent List -->
+    <div class="lg:col-span-2 card">
+        <h3 class="font-semibold text-gray-800 mb-4">Danh sách Agent</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Agent ID</th>
+                        <th class="px-4 py-3 text-left">Principal</th>
+                        <th class="px-4 py-3 text-right">Max Notional</th>
+                        <th class="px-4 py-3 text-center">Max Leverage</th>
+                        <th class="px-4 py-3 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for a in agents %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium">{{ a.agent_id }}</td>
+                        <td class="px-4 py-3">{{ a.principal_id }}</td>
+                        <td class="px-4 py-3 text-right">${{ "{:,.0f}".format(a.max_notional_usd or 0) }}</td>
+                        <td class="px-4 py-3 text-center">{{ a.max_leverage }}x</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if a.is_active %}
+                                <span class="badge-allow">Active</span>
+                            {% else %}
+                                <span class="badge-block">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-400">Chưa có agent nào</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Register Form -->
+    <div class="card">
+        <h3 class="font-semibold text-gray-800 mb-4">Đăng ký Agent mới</h3>
+        <form method="POST" action="/agents" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID</label>
+                <input type="text" name="agent_id" required
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Principal ID</label>
+                <input type="text" name="principal_id" required
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max Notional (USD)</label>
+                <input type="number" name="max_notional_usd" value="1000000" step="10000"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max Leverage</label>
+                <input type="number" name="max_leverage" value="20" step="1"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg text-sm">
+                Đăng ký Agent
+            </button>
+        </form>
+
+        {% if message %}
+        <div class="mt-4 p-3 rounded-lg text-sm {% if success %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

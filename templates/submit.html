@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Submit Action - AI Agent Monitor{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Submit Action</h1>
+    <p class="text-gray-500 mt-1">Gửi hành động của AI Agent để hệ thống giám sát và đưa ra quyết định</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Form -->
+    <div class="card">
+        <form method="POST" action="/submit" class="space-y-5">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID</label>
+                    <input type="text" name="agent_id" value="agent_003" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Principal ID</label>
+                    <input type="text" name="principal_id" value="principal_1"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Loại hành động</label>
+                <select name="action_type" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    <option value="FOREX_TRADE">FOREX_TRADE</option>
+                    <option value="PAYMENT">PAYMENT</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cặp tiền (Forex)</label>
+                    <select name="pair" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="EURUSD">EURUSD</option>
+                        <option value="GBPUSD">GBPUSD</option>
+                        <option value="USDJPY">USDJPY</option>
+                        <option value="AUDUSD">AUDUSD</option>
+                        <option value="">None (Payment)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Side</label>
+                    <select name="side" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="BUY">BUY</option>
+                        <option value="SELL">SELL</option>
+                        <option value="">None</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notional (USD)</label>
+                    <input type="number" name="notional_usd" value="250000" step="1000" required
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Leverage</label>
+                    <input type="number" name="leverage" value="10" step="0.5"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Giờ trong ngày (0-23)</label>
+                <input type="number" name="hour" value="14" min="0" max="23"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" name="use_llm" id="use_llm" checked class="rounded border-gray-300 text-blue-600">
+                <label for="use_llm" class="ml-2 text-sm text-gray-700">Sử dụng LLM Critic (Groq)</label>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition">
+                🚀 Gửi để giám sát
+            </button>
+        </form>
+    </div>
+
+    <!-- Result -->
+    <div>
+        {% if result %}
+        <div class="card border-l-4 {% if result.decision == 'ALLOW' %}border-green-500{% elif result.decision == 'REVIEW' %}border-yellow-500{% else %}border-red-500{% endif %}">
+            <h3 class="font-semibold text-lg mb-4">Kết quả giám sát</h3>
+            
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                    <p class="text-sm text-gray-500">Quyết định</p>
+                    <p class="text-2xl font-bold 
+                        {% if result.decision == 'ALLOW' %}text-green-600
+                        {% elif result.decision == 'REVIEW' %}text-yellow-600
+                        {% else %}text-red-600{% endif %}">
+                        {{ result.decision }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Mức rủi ro</p>
+                    <p class="text-2xl font-bold">{{ result.risk_level }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Anomaly Score</p>
+                    <p class="text-xl font-semibold">{{ "%.4f"|format(result.anomaly_score or 0) }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">LLM Recommendation</p>
+                    <p class="text-xl font-semibold">{{ result.llm_recommendation or 'N/A' }}</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                <p class="text-sm font-medium text-gray-700 mb-1">Lý do:</p>
+                <p class="text-sm text-gray-600">{{ result.reason }}</p>
+            </div>
+
+            {% if result.llm_explanation %}
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm font-medium text-blue-800 mb-1">LLM Critic:</p>
+                <p class="text-sm text-blue-700">{{ result.llm_explanation }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="card h-full flex items-center justify-center text-gray-400">
+            <div class="text-center">
+                <p class="text-4xl mb-3">📋</p>
+                <p>Kết quả sẽ hiển thị ở đây sau khi gửi</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

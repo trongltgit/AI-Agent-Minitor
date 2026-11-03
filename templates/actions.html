@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử Actions - AI Agent Monitor{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Lịch sử Actions</h1>
+    <p class="text-gray-500 mt-1">Danh sách các hành động đã được giám sát</p>
+</div>
+
+<div class="card">
+    <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                    <th class="px-4 py-3 text-left">Thời gian</th>
+                    <th class="px-4 py-3 text-left">Agent</th>
+                    <th class="px-4 py-3 text-left">Loại</th>
+                    <th class="px-4 py-3 text-left">Pair</th>
+                    <th class="px-4 py-3 text-right">Notional</th>
+                    <th class="px-4 py-3 text-center">Score</th>
+                    <th class="px-4 py-3 text-center">Risk</th>
+                    <th class="px-4 py-3 text-center">Quyết định</th>
+                    <th class="px-4 py-3 text-left">Lý do</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for a in actions %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-500 whitespace-nowrap">{{ a.timestamp[:19] if a.timestamp else '-' }}</td>
+                    <td class="px-4 py-3 font-medium">{{ a.agent_id }}</td>
+                    <td class="px-4 py-3">{{ a.action_type }}</td>
+                    <td class="px-4 py-3">{{ a.pair or '-' }}</td>
+                    <td class="px-4 py-3 text-right">${{ "{:,.0f}".format(a.notional_usd or 0) }}</td>
+                    <td class="px-4 py-3 text-center">{{ "%.3f"|format(a.anomaly_score or 0) }}</td>
+                    <td class="px-4 py-3 text-center">{{ a.risk_level }}</td>
+                    <td class="px-4 py-3 text-center">
+                        {% if a.decision == 'ALLOW' %}
+                            <span class="badge-allow">ALLOW</span>
+                        {% elif a.decision == 'REVIEW' %}
+                            <span class="badge-review">REVIEW</span>
+                        {% else %}
+                            <span class="badge-block">BLOCK</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-gray-500 max-w-xs truncate">{{ a.reason or '' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="px-4 py-10 text-center text-gray-400">Chưa có action nào</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
