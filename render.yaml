@@ -30,8 +30,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      - key: API_URL
-        fromService:
-          name: ai-agent-monitor-api
-          type: web
-          property: host
+      # Bạn sẽ set API_URL thủ công sau khi API có URL
+      # - key: API_URL
+      #   value: https://ai-agent-monitor-api.onrender.com
