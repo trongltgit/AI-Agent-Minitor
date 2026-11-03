@@ -14,9 +14,10 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.0"
       - key: LLM_PROVIDER
-        value: mock
+        value: groq
       - key: DATABASE_URL
         value: sqlite:///./data/agent_monitor.db
+      # Thêm GROQ_API_KEY trong Environment của Render sau khi deploy
     healthCheckPath: /health
 
   # ========== Streamlit Dashboard ==========
@@ -30,6 +31,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
-      # Sau khi deploy xong, vào Dashboard → Environment thêm:
-      # Key: API_URL
-      # Value: https://ai-agent-monitor-api-xxxx.onrender.com
