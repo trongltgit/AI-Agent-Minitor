@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, JSON, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, JSON, Index, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -26,7 +26,6 @@ class AgentRegistry(Base):
     principal_id = Column(String(64), index=True)
     agent_type = Column(String(32), default="hybrid")
     
-    # STRICT BROKER-SIDE LIMITS
     max_notional_per_trade = Column(Float, default=500_000)
     max_notional_daily = Column(Float, default=2_000_000)
     max_leverage = Column(Float, default=20.0)
@@ -109,8 +108,23 @@ class AgentAction(Base):
 
 
 def init_db():
+    """Create tables. On SQLite, drop old tables if schema is outdated."""
     os.makedirs("data", exist_ok=True)
+    
+    if "sqlite" in DATABASE_URL:
+        try:
+            with engine.connect() as conn:
+                # Check if old schema (missing new columns)
+                result = conn.execute(text("PRAGMA table_info(agent_actions)"))
+                columns = [row[1] for row in result]
+                if columns and "behavior_deviation_score" not in columns:
+                    print("Old schema detected → recreating tables...")
+                    Base.metadata.drop_all(bind=engine)
+        except Exception as e:
+            print(f"Schema check: {e}")
+    
     Base.metadata.create_all(bind=engine)
+    print("Database initialized.")
 
 
 def get_db():
