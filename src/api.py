@@ -160,3 +160,130 @@ def list_customers(db: Session = Depends(get_db)):
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "2.0.0", "timestamp": datetime.utcnow().isoformat()}
+
+
+# ========== FX TRADING + ANTI-BOT + KYA ==========
+
+from fastapi import Header, UploadFile, File
+from src.pricing.fx_trading import create_fx_quote, execute_fx_trade
+from src.antibot.security import anti_bot_check, generate_fingerprint
+from src.simulation.settlement import settlement_engine
+import csv, io
+
+
+class FXQuoteRequest(BaseModel):
+    currency: str = "USD"
+    side: str = "SELL"
+    amount: float = 100000
+    cif: Optional[str] = None
+    principal_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    branch_margin: Optional[float] = None
+    role: str = "KH"  # KH | CN | HQ
+
+
+class FXExecuteRequest(BaseModel):
+    quote_id: str
+    agent_id: Optional[str] = None
+    principal_id: Optional[str] = None
+    notional_usd: Optional[float] = None
+    leverage: Optional[float] = None
+    hour: Optional[int] = None
+
+
+@app.post("/fx/quote")
+def fx_quote(req: FXQuoteRequest, request: Request):
+    """Tạo FX quote – chỉ trả final price theo role. Có anti-bot cơ bản."""
+    ctx = anti_bot_check(request, require_signature=False, rate_limit=40, rate_window=60)
+    owner = req.agent_id or req.principal_id or req.cif or ctx["fingerprint"]
+    result = create_fx_quote(
+        currency=req.currency,
+        side=req.side,
+        amount=req.amount,
+        role=req.role,
+        cif=req.cif,
+        principal_id=req.principal_id,
+        agent_id=req.agent_id,
+        branch_margin=req.branch_margin,
+        owner_key=owner,
+    )
+    result["_anti_bot"] = {"ip": ctx["ip"], "rate_remaining": ctx["rate_remaining"]}
+    return result
+
+
+@app.post("/fx/execute")
+def fx_execute(req: FXExecuteRequest, request: Request, db: Session = Depends(get_db)):
+    """
+    Execute FX trade:
+    1. Anti-bot check
+    2. AI Agent Monitor (KYA) nếu có agent_id
+    3. Claim quote single-use
+    4. Settlement giả lập
+    """
+    ctx = anti_bot_check(request, require_signature=False, rate_limit=20, rate_window=60)
+    owner = req.agent_id or req.principal_id or ctx["fingerprint"]
+
+    monitor_decision = None
+    monitor_result = None
+    if req.agent_id:
+        # Chạy KYA Monitor trước khi execute
+        action = {
+            "agent_id": req.agent_id,
+            "principal_id": req.principal_id,
+            "action_type": "FOREX_TRADE",
+            "pair": "USDVND",
+            "notional_usd": req.notional_usd or 0,
+            "leverage": req.leverage,
+            "hour": req.hour if req.hour is not None else datetime.utcnow().hour,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        monitor_result = monitor_service.score_action(action, db, use_llm=True)
+        monitor_decision = monitor_result.get("decision")
+
+    exec_result = execute_fx_trade(
+        quote_id=req.quote_id,
+        owner_key=owner,
+        monitor_decision=monitor_decision,
+    )
+    if monitor_result:
+        exec_result["kya_monitor"] = {
+            "decision": monitor_result.get("decision"),
+            "risk_level": monitor_result.get("risk_level"),
+            "anomaly_score": monitor_result.get("anomaly_score"),
+            "reason": monitor_result.get("reason"),
+        }
+    return exec_result
+
+
+@app.get("/fx/settlements")
+def list_settlements(limit: int = 50):
+    return settlement_engine.list_settlements(limit=limit)
+
+
+@app.post("/upload/fx-history")
+async def upload_fx_history(file: UploadFile = File(...)):
+    """Upload CSV lịch sử FX để test / nạp dữ liệu giả lập."""
+    content = await file.read()
+    text = content.decode("utf-8", errors="ignore")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+    # Lưu tạm
+    import os
+    os.makedirs("data/uploads", exist_ok=True)
+    path = f"data/uploads/{file.filename or 'fx_upload.csv'}"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return {
+        "status": "ok",
+        "filename": file.filename,
+        "rows": len(rows),
+        "columns": list(rows[0].keys()) if rows else [],
+        "sample": rows[:3],
+        "saved_to": path,
+    }
+
+
+@app.get("/simulation/agents")
+def sim_agents():
+    from src.simulation.agents import list_agents
+    return list_agents()

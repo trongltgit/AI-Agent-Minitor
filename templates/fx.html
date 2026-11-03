@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}FX Trading - AI Agent Monitor{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">FX Trading + Anti-Bot + KYA</h1>
+  <p class="text-gray-500 text-sm mt-1">Quote (final price theo role) → Monitor Agent → Execute (single-use) → Settlement</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Quote Form -->
+  <div class="card">
+    <h3 class="font-semibold mb-4">1. Tạo Quote FX</h3>
+    <form id="quoteForm" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm text-gray-600">Currency</label>
+          <select name="currency" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <option>USD</option><option>EUR</option><option>GBP</option><option>JPY</option><option>AUD</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Side</label>
+          <select name="side" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <option>SELL</option><option>BUY</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-sm text-gray-600">Amount</label>
+        <input name="amount" type="number" value="100000" class="w-full border rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm text-gray-600">Role xem giá</label>
+          <select name="role" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="KH">KH (chỉ final)</option>
+            <option value="CN">CN (thấy margin)</option>
+            <option value="HQ">HQ (thấy đủ)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Agent ID (KYA)</label>
+          <input name="agent_id" value="agent_safe_001" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+      </div>
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm">Lấy giá</button>
+    </form>
+    <pre id="quoteResult" class="mt-4 bg-gray-50 p-3 rounded text-xs overflow-auto max-h-48"></pre>
+  </div>
+
+  <!-- Execute + Upload -->
+  <div class="space-y-6">
+    <div class="card">
+      <h3 class="font-semibold mb-4">2. Execute (single-use + KYA)</h3>
+      <form id="execForm" class="space-y-3">
+        <div>
+          <label class="text-sm text-gray-600">Quote ID</label>
+          <input name="quote_id" id="execQuoteId" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="dán quote_id">
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Agent ID</label>
+          <input name="agent_id" value="agent_safe_001" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-sm text-gray-600">Notional USD (cho KYA)</label>
+          <input name="notional_usd" type="number" value="100000" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg text-sm">Execute Trade</button>
+      </form>
+      <pre id="execResult" class="mt-4 bg-gray-50 p-3 rounded text-xs overflow-auto max-h-48"></pre>
+    </div>
+
+    <div class="card">
+      <h3 class="font-semibold mb-3">Upload file FX history (CSV)</h3>
+      <form id="uploadForm" class="space-y-2">
+        <input type="file" name="file" accept=".csv" class="text-sm">
+        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm">Upload</button>
+      </form>
+      <pre id="uploadResult" class="mt-3 bg-gray-50 p-3 rounded text-xs"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('quoteForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  body.amount = parseFloat(body.amount);
+  const r = await fetch('/fx/quote', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json();
+  document.getElementById('quoteResult').textContent = JSON.stringify(j, null, 2);
+  if (j.quote_id) document.getElementById('execQuoteId').value = j.quote_id;
+};
+
+document.getElementById('execForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  body.notional_usd = parseFloat(body.notional_usd);
+  const r = await fetch('/fx/execute', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  document.getElementById('execResult').textContent = JSON.stringify(await r.json(), null, 2);
+};
+
+document.getElementById('uploadForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/upload/fx-history', {method:'POST', body: fd});
+  document.getElementById('uploadResult').textContent = JSON.stringify(await r.json(), null, 2);
+};
+</script>
+{% endblock %}

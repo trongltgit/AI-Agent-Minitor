@@ -212,3 +212,86 @@ def register_agent_web(
         name="agents.html",
         context={"agents": agents, "message": message, "success": success},
     )
+
+
+# ========== SIMULATION & TEST ROUTES ==========
+
+@router.get("/test-lab", response_class=HTMLResponse)
+def test_lab_page(request: Request):
+    from src.simulation.agents import list_agents
+    agents = list_agents()
+    return templates.TemplateResponse(
+        request=request,
+        name="test_lab.html",
+        context={"agents": agents, "result": None, "batch_results": None},
+    )
+
+
+@router.post("/test-lab/run", response_class=HTMLResponse)
+def test_lab_run(
+    request: Request,
+    agent_id: str = Form(...),
+    force_over_limit: Optional[str] = Form(None),
+    use_llm: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    from src.simulation.agents import list_agents, generate_test_action
+    from src.simulation.settlement import settlement_engine
+
+    action = generate_test_action(agent_id, force_over_limit=bool(force_over_limit))
+    action["timestamp"] = datetime.utcnow().isoformat()
+
+    try:
+        result = monitor_service.score_action(action, db, use_llm=bool(use_llm))
+        # Simulate settlement if ALLOW
+        settlement = None
+        if result.get("decision") == "ALLOW":
+            settlement = settlement_engine.settle_trade({**action, **result})
+        result["settlement"] = settlement
+        result["test_action"] = action
+    except Exception as e:
+        result = {"decision": "ERROR", "reason": str(e), "test_action": action}
+
+    agents = list_agents()
+    return templates.TemplateResponse(
+        request=request,
+        name="test_lab.html",
+        context={"agents": agents, "result": result, "batch_results": None},
+    )
+
+
+@router.post("/test-lab/batch", response_class=HTMLResponse)
+def test_lab_batch(
+    request: Request,
+    n: int = Form(10),
+    use_llm: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    from src.simulation.agents import list_agents, generate_test_action, SIMULATED_AGENTS
+    from src.simulation.settlement import settlement_engine
+    import random
+
+    batch_results = []
+    for _ in range(min(n, 30)):
+        agent = random.choice(SIMULATED_AGENTS)
+        force = agent["behavior"] == "rogue" or random.random() < 0.2
+        action = generate_test_action(agent["agent_id"], force_over_limit=force)
+        action["timestamp"] = datetime.utcnow().isoformat()
+        try:
+            res = monitor_service.score_action(action, db, use_llm=bool(use_llm))
+            if res.get("decision") == "ALLOW":
+                settlement_engine.settle_trade({**action, **res})
+            batch_results.append({**res, "test_action": action})
+        except Exception as e:
+            batch_results.append({"decision": "ERROR", "reason": str(e), "test_action": action})
+
+    agents = list_agents()
+    return templates.TemplateResponse(
+        request=request,
+        name="test_lab.html",
+        context={"agents": agents, "result": None, "batch_results": batch_results},
+    )
+
+@router.get("/fx", response_class=HTMLResponse)
+def fx_page(request: Request):
+    return templates.TemplateResponse(request=request, name="fx.html", context={})
